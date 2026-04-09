@@ -1,171 +1,314 @@
-# Student List
+# 🐳 Student List — Conteneurisation avec Docker
 
-This repository contains a simple application designed to display a list of students through a web server (PHP) and an API (Flask).
-
-![Project](https://user-images.githubusercontent.com/18481009/84582395-ba230b00-adeb-11ea-9453-22ed1be7e268.jpg)
+> **Projet POZOS** — Preuve de concept (POC) démontrant l'efficacité de Docker pour moderniser l'infrastructure de déploiement d'une application web.
 
 ---
 
-## Objectives
+## 📋 Table des matières
 
-This practice exam aims to evaluate your capability to manage Docker infrastructure. You will be assessed on the following skills:
+- [Contexte](#-contexte)
+- [Architecture](#-architecture)
+- [Structure du dépôt](#-structure-du-dépôt)
+- [Étape 1 — Build de l'image API](#-étape-1--build-de-limage-api)
+- [Étape 2 — Déploiement avec Docker Compose](#-étape-2--déploiement-avec-docker-compose)
+- [Étape 3 — Registre Docker privé](#-étape-3--registre-docker-privé)
 
-### Themes
+---
 
-- Improving the existing application deployment process.
-- Versioning infrastructure releases.
-- Adhering to best practices for Docker infrastructure implementation.
-- Infrastructure as Code (IaC).
+## 🏢 Contexte
 
-## Context
+**POZOS** est une entreprise informatique française qui développe des logiciels pour les lycées. Son département innovation souhaite moderniser son infrastructure en adoptant Docker pour assurer :
 
-**POZOS** is an IT company based in France that develops software for high schools.
+- La **scalabilité** de ses applications
+- La **facilité de déploiement** via l'automatisation
+- La **reproductibilité** des environnements
 
-The innovation department aims to modernize its existing infrastructure to ensure scalability and easy deployment through maximum automation.
+L'application `student_list` est une application simple composée de deux modules :
 
-POZOS requires a **Proof of Concept (POC)** demonstrating Docker’s efficiency and agility.
+| Module | Technologie | Rôle |
+|--------|------------|------|
+| **API REST** | Python / Flask | Retourne la liste des étudiants depuis un fichier JSON (authentification requise) |
+| **Application Web** | PHP / Apache | Interface utilisateur pour consulter la liste des étudiants |
 
-Currently, the application runs on a single server without scalability or high availability. Deployments often encounter issues. Therefore, POZOS seeks enhanced agility for its software infrastructure.
+---
 
-## Infrastructure
+## 🏗 Architecture
 
-For this POC, you will use a single machine with Docker installed. Both the build and deployment processes will occur on this machine.
-
-POZOS recommends Ubuntu 20.04, the most commonly used OS in the company. You may use an Ubuntu 20.04-based virtual machine instead of your physical machine.
-
-Security is critical for POZOS DSI; therefore, do not disable the firewall or any other security mechanisms unless explicitly justified in your delivery.
-
-## Application
-
-You will work with the application **student_list**, a basic app used by POZOS to display students' names along with their ages.
-
-The application consists of two modules:
-
-- **REST API:** Requires basic authentication and returns the list of students based on a JSON file.
-- **Web Application:** Written in HTML and PHP, allowing end-users to view the list of students.
-
-Your task is to containerize each module separately and enable communication between them.
-
-Application source code: [student-list GitHub repository](https://github.com/diranetafen/student-list.git)
-
-### Required Files
-
-You must deliver the following files:
-
-- **Dockerfile** (initially empty)
-- **docker-compose.yml** (initially empty)
-
-### File Descriptions:
-
-- **docker-compose.yml:** Deploys both the API and the web application.
-- **Dockerfile:** Builds the API image.
-- **requirements.txt:** Lists all packages required by the API.
-- **student_age.json:** Contains student names and ages in JSON format.
-- **student_age.py:** Python API source code.
-- **index.php:** PHP page allowing end-users to access the student list. Update the following line with your API deployment details before running the container:
-
-```php
-$url = 'http://<api_ip_or_service_name:port>/pozos/api/v1.0/get_student_ages';
+```
+┌─────────────────────────────────────────────────┐
+│              Réseau Docker : pozos_network        │
+│                                                   │
+│  ┌─────────────────┐      ┌──────────────────┐   │
+│  │  webapp          │      │   pozos_api       │   │
+│  │  php:apache      │─────▶│   student-api     │   │
+│  │  Port: 80        │      │   Port: 5000      │   │
+│  └─────────────────┘      └────────┬─────────┘   │
+│                                     │             │
+│                            ┌────────▼─────────┐   │
+│                            │  Volume           │   │
+│                            │  student_age.json │   │
+│                            └──────────────────┘   │
+└─────────────────────────────────────────────────┘
+        │                          │
+      :80                        :5000
+   Navigateur                   curl / API
 ```
 
-## Build and Test (7 Points)
+---
 
-POZOS provides instructions to build the API container:
+## 📁 Structure du dépôt
 
-- **Base Image:** Use `python:3.11-slim`.
-- **Maintainer:** Include maintainer information in your Dockerfile.
-- **Source Code:** Copy the API source code to the root directory `/` inside the container.
-- **Prerequisites:** The API uses Flask and requires additional packages. Install them using:
+```
+student-list/
+├── simple_api/
+│   ├── Dockerfile            # Image de l'API Flask
+│   ├── student_age.py        # Code source de l'API
+│   ├── student_age.json      # Données des étudiants
+│   └── requirements.txt      # Dépendances Python
+├── website/
+│   └── index.php             # Interface web PHP
+├── registry/
+│   └── auth/                 # Authentification du registre privé
+├── docker-compose.yml        # Déploiement API + Web
+└── docker-compose-registry.yml  # Déploiement registre privé
+```
 
-```bash
-apt update -y && apt install -y python3-dev \
+---
+
+## 🔨 Étape 1 — Build de l'image API
+
+### Le Dockerfile
+
+```dockerfile
+FROM python:3.13-slim
+LABEL maintainer="EAZYTraining"
+WORKDIR /app
+COPY student_age.py .
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        python3-dev \
         libsasl2-dev \
         libldap2-dev \
         libssl-dev \
         gcc \
-        build-essential
+        build-essential && \
+    rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
+VOLUME /data
+EXPOSE 5000
+CMD [ "python3", "./student_age.py" ]
 ```
 
-Copy `requirements.txt` to `/` and install packages:
+**Explication des instructions :**
+
+| Instruction | Rôle |
+|-------------|------|
+| `FROM python:3.13-slim` | Image de base légère Python 3.13 |
+| `LABEL maintainer` | Métadonnée d'identification du mainteneur |
+| `WORKDIR /app` | Définit le répertoire de travail dans le conteneur |
+| `COPY student_age.py .` | Copie le code source de l'API |
+| `RUN apt-get install ...` | Installe les dépendances système nécessaires |
+| `RUN pip3 install` | Installe les bibliothèques Python |
+| `VOLUME /data` | Déclare le point de montage pour les données |
+| `EXPOSE 5000` | Expose le port de l'API |
+| `CMD` | Commande de démarrage du conteneur |
+
+### Construction de l'image
 
 ```bash
-pip3 install -r /requirements.txt
+docker build -t student-api ./simple_api/
 ```
 
-- **Persistent Data:** Create a `/data` folder as a volume for storing student data. Mount `student_age.json` here.
-- **API Port:** Expose port 5000.
-- **CMD:** Run `student_age.py` on container start:
+> 📸 **Capture 1 — Build de l'image**
+> 
+> ![Build de l'image Docker](screenshots/01-docker-build.png)
 
-```Dockerfile
-CMD ["python3", "./student_age.py"]
-```
+### Test de l'API
 
-Build and test the container. Confirm the API is responsive by executing:
+Lancement du conteneur :
 
 ```bash
-curl -u toto:python -X GET http://<host_ip>:5000/pozos/api/v1.0/get_student_ages
+docker run -d \
+  --name api \
+  -p 5000:5000 \
+  -v "D:/path/to/simple_api/student_age.json:/data/student_age.json" \
+  student-api
 ```
 
-Take a screenshot for the delivery.
+Vérification que l'API répond :
 
-**Congratulations! Proceed to the docker-compose step.**
+```bash
+curl -u toto:python http://localhost:5000/pozos/api/v1.0/get_student_ages
+```
 
-## Infrastructure as Code (5 Points)
+Réponse attendue :
 
-After testing the API, deploy the application using `docker-compose.yml`:
+```json
+{
+  "student_ages": {
+    "alice": "12",
+    "bob": "13"
+  }
+}
+```
 
-Deploy two services:
+> 📸 **Capture 2 — Test curl de l'API**
+> 
+> ![Test curl de l'API](screenshots/02-curl-api.png)
 
-- **website**:
-  - Image: `php:apache`
-  - Environment: Set `USERNAME` and `PASSWORD` to access the API (USERNAME=toto ; PASSWORD=python).
-  - Volume: Bind local `./website` directory to `/var/www/html`.
-  - Dependency: Ensure it starts after the API service.
-  - Expose the required port.
+---
 
-- **api**:
-  - Use the previously built image.
-  - Mount `student_age.json` to `/data/student_age.json`.
-  - Expose port 5000.
-  - Use a dedicated Docker network for communication.
+## 🐙 Étape 2 — Déploiement avec Docker Compose
 
-Clean up previous containers, run `docker-compose.yml`, and test by accessing the web interface. Click "List Student" and take a screenshot if successful.
+### Le docker-compose.yml
 
-**Congratulations! You've successfully dockerized the POZOS application.**
+```yaml
+version: '3.3'
+services:
+  webapp_student_list:
+    image: php:apache
+    container_name: webapp_student_list
+    depends_on:
+      - pozos_api
+    ports:
+      - "80:80"
+    volumes:
+      - ./website/:/var/www/html
+    environment:
+      - USERNAME=toto
+      - PASSWORD=python
+    networks:
+      - pozos_network
 
-## Docker Registry (4 Points)
+  pozos_api:
+    image: student-api
+    container_name: pozos_api
+    volumes:
+      - ./simple_api/student_age.json:/data/student_age.json
+    ports:
+      - "5000:5000"
+    networks:
+      - pozos_network
 
-Deploy a private Docker registry:
+networks:
+  pozos_network:
+    name: pozos_network
+    driver: bridge
+```
 
-- Docker [registry](https://docs.docker.com/registry/)
-- Web [interface](https://hub.docker.com/r/joxit/docker-registry-ui/) or [Portus](http://port.us.org/)
+**Points clés de la configuration :**
 
-Push your built images to the registry and include screenshots in your delivery.
+- `depends_on` : garantit que l'API démarre avant l'application web
+- `networks` : les deux services communiquent via un réseau Docker dédié (`pozos_network`), isolé du reste
+- Les variables d'environnement `USERNAME` et `PASSWORD` permettent à l'application web de s'authentifier auprès de l'API
+- Le volume monte directement le fichier JSON dans le conteneur API
 
-## Delivery (4 Points)
+### Déploiement
 
-Your delivery must include a repository link containing:
+```bash
+docker compose up -d
+```
 
-- A `README.md` with screenshots and detailed explanations.
-- Configuration files (`docker-compose.yml` and `Dockerfile`).
+> 📸 **Capture 3 — Docker Compose up**
+> 
+> ![Docker Compose démarrage](screenshots/03-docker-compose-up.png)
 
-Your delivery will be evaluated on:
+### Test de l'interface web
 
-- Quality of explanations
-- Quality of screenshots (clarity and relevance)
-- Presentation quality
-- Repository structure
+Accéder à **http://localhost** et cliquer sur **"List Student"**.
 
-Send your delivery link to **contact@eazytraining.fr** to receive the solution link.
+> 📸 **Capture 4 — Interface web avec la liste des étudiants**
+> 
+> ![Interface web POZOS](screenshots/04-web-interface.png)
 
+---
 
-📌 **Useful Resource:**
+## 📦 Étape 3 — Registre Docker privé
 
-To perform this exercise in a standardized environment, you can use the following Vagrant stack provided by Eazytraining:
+Un registre Docker privé est déployé avec une interface web pour gérer les images.
 
-🔗 [Vagrant Stack with Docker](https://github.com/diranetafen/cursus-devops/tree/master/vagrant/docker)
+### Le docker-compose-registry.yml
 
+```yaml
+version: '3.3'
+services:
+  pozos-registry:
+    image: registry:2.8.1
+    container_name: pozos-registry
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/docker/registry:/var/lib/registry
+      - ./registry/auth:/auth
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+    networks:
+      - pozos_reg_network
 
+  frontend-reg:
+    image: joxit/docker-registry-ui:2
+    container_name: frontend-reg
+    depends_on:
+      - pozos-registry
+    ports:
+      - "8080:80"
+    environment:
+      - NGINX_PROXY_PASS_URL=http://pozos-registry:5000
+      - DELETE_IMAGES=true
+      - REGISTRY_TITLE=Pozos
+      - SINGLE_REGISTRY=true
+    networks:
+      - pozos_reg_network
 
-![Good luck!](https://user-images.githubusercontent.com/18481009/84582398-cad38100-adeb-11ea-95e3-2a9d4c0d5437.gif)
+networks:
+  pozos_reg_network:
+    driver: bridge
+```
 
+### Déploiement du registre
+
+```bash
+docker compose -f docker-compose-registry.yml up -d
+```
+
+### Push de l'image vers le registre privé
+
+```bash
+# Connexion au registre
+docker login localhost:5000 -u pozos -p change-me
+
+# Tag de l'image
+docker tag student-api localhost:5000/pozos/student-api:1.0
+
+# Push vers le registre
+docker push localhost:5000/pozos/student-api:1.0
+```
+
+> 📸 **Capture 5 — Interface du registre privé (vide)**
+> 
+> ![Registre privé vide](screenshots/05-registry-empty.png)
+
+> 📸 **Capture 6 — Image poussée dans le registre**
+> 
+> ![Image dans le registre](screenshots/06-registry-with-image.png)
+
+---
+
+## ✅ Résumé
+
+| Étape | Description | Statut |
+|-------|-------------|--------|
+| Build Dockerfile | Image API Flask construite | ✅ |
+| Test API | curl retourne la liste des étudiants | ✅ |
+| Docker Compose | API + Web déployés ensemble | ✅ |
+| Interface web | Liste des étudiants visible | ✅ |
+| Registre privé | Déployé avec interface graphique | ✅ |
+| Push image | student-api disponible dans le registre | ✅ |
+
+---
+
+*Réalisé dans le cadre du cours DevOps — Docker — EazyTraining*
