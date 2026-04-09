@@ -1,0 +1,31 @@
+# version: '3.3'
+services:
+  webapp_student_list:
+    image: php:apache
+    container_name: webapp_student_list
+    depends_on:
+      - pozos_api
+    ports:
+      - "80:80"
+    volumes:
+      - ./website/:/var/www/html
+    environment:
+      - USERNAME=toto
+      - PASSWORD=python
+    networks:
+      - pozos_network
+
+  pozos_api:
+    image: student-api
+    container_name: pozos_api
+    volumes:
+      - ./simple_api/student_age.json:/data/student_age.json
+    ports:
+      - "5000:5000"
+    networks:
+      - pozos_network
+
+networks:
+  pozos_network:
+    name: pozos_network
+    driver: bridge
