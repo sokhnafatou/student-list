@@ -1,10 +1,10 @@
-# 🐳 Student List — Conteneurisation avec Docker
+# Student List — Conteneurisation avec Docker
 
 > **Projet POZOS** — Preuve de concept (POC) démontrant l'efficacité de Docker pour moderniser l'infrastructure de déploiement d'une application web.
 
 ---
 
-## 📋 Table des matières
+## Table des matières
 
 - [Contexte](#-contexte)
 - [Architecture](#-architecture)
@@ -15,7 +15,7 @@
 
 ---
 
-## 🏢 Contexte
+## Contexte
 
 **POZOS** est une entreprise informatique française qui développe des logiciels pour les lycées. Son département innovation souhaite moderniser son infrastructure en adoptant Docker pour assurer :
 
@@ -32,7 +32,7 @@ L'application `student_list` est une application simple composée de deux module
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -56,7 +56,7 @@ L'application `student_list` est une application simple composée de deux module
 
 ---
 
-## 📁 Structure du dépôt
+## Structure du dépôt
 
 ```
 student-list/
@@ -75,7 +75,7 @@ student-list/
 
 ---
 
-## 🔨 Étape 1 — Build de l'image API
+## Étape 1 — Build de l'image API
 
 ### Le Dockerfile
 
@@ -122,7 +122,8 @@ docker build -t student-api ./simple_api/
 
 > 📸 **Capture 1 — Build de l'image**
 > 
-> ![Build de l'image Docker](screenshots/01-docker-build.png)
+> <img width="1184" height="517" alt="capture1" src="https://github.com/user-attachments/assets/1ae5c5a8-0480-497d-a7e3-01599bf2d61d" />
+
 
 ### Test de l'API
 
@@ -155,11 +156,12 @@ Réponse attendue :
 
 > 📸 **Capture 2 — Test curl de l'API**
 > 
-> ![Test curl de l'API](screenshots/02-curl-api.png)
+> <img width="1110" height="215" alt="capture1-2" src="https://github.com/user-attachments/assets/10e7e25d-6968-41d0-862d-bd195ddef1ca" />
+
 
 ---
 
-## 🐙 Étape 2 — Déploiement avec Docker Compose
+## Étape 2 — Déploiement avec Docker Compose
 
 ### Le docker-compose.yml
 
@@ -212,7 +214,8 @@ docker compose up -d
 
 > 📸 **Capture 3 — Docker Compose up**
 > 
-> ![Docker Compose démarrage](screenshots/03-docker-compose-up.png)
+> <img width="1308" height="510" alt="capture2" src="https://github.com/user-attachments/assets/37a83c22-f7f6-42b0-8b16-1b608d5d991a" />
+
 
 ### Test de l'interface web
 
@@ -220,11 +223,12 @@ Accéder à **http://localhost** et cliquer sur **"List Student"**.
 
 > 📸 **Capture 4 — Interface web avec la liste des étudiants**
 > 
-> ![Interface web POZOS](screenshots/04-web-interface.png)
+> <img width="811" height="371" alt="image" src="https://github.com/user-attachments/assets/1e65861b-e294-4351-9cbd-61ed3f8a2c62" />
+
 
 ---
 
-## 📦 Étape 3 — Registre Docker privé
+## Étape 3 — Registre Docker privé
 
 Un registre Docker privé est déployé avec une interface web pour gérer les images.
 
@@ -290,15 +294,17 @@ docker push localhost:5000/pozos/student-api:1.0
 
 > 📸 **Capture 5 — Interface du registre privé (vide)**
 > 
-> ![Registre privé vide](screenshots/05-registry-empty.png)
+> <img width="1354" height="615" alt="capture3" src="https://github.com/user-attachments/assets/55f3d1aa-5561-42e9-a268-6b0e7197a5a7" />
+
 
 > 📸 **Capture 6 — Image poussée dans le registre**
 > 
-> ![Image dans le registre](screenshots/06-registry-with-image.png)
+> <img width="1354" height="615" alt="capture4" src="https://github.com/user-attachments/assets/227bf7d7-1002-49ce-99ce-2d5704533b3e" />
+
 
 ---
 
-## ✅ Résumé
+## Résumé
 
 | Étape | Description | Statut |
 |-------|-------------|--------|
